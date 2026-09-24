@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>今晚誰搞事？</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="brand"><div class="brand-mark">搞</div><div><h1>今晚誰搞事？</h1><p>荒謬職場生存會議</p></div></div>
+    <section class="card hero">
+      <div class="eyebrow">4–10 人多人派對遊戲</div>
+      <h2>公司快不行了。<br>但有人希望它更不行。</h2>
+      <p>一台大螢幕主持，每人一支手機。八回合內守住資金、士氣與風險，還要找出誰一直在會議裡「提供建設性意見」。</p>
+    </section>
+    <div class="grid-2">
+      <section class="card">
+        <div class="eyebrow">大螢幕</div>
+        <h2>建立新房間</h2>
+        <p class="subtitle">請在電視、投影幕或共用電腦上操作。</p>
+        <button id="create-room" class="btn full">建立遊戲</button>
+        <div id="create-error" class="error hidden"></div>
+      </section>
+      <section class="card">
+        <div class="eyebrow">玩家手機</div>
+        <h2>加入房間</h2>
+        <form id="join-form">
+          <div class="field"><label for="room-code">4 位數房號</label><input id="room-code" class="input room-input" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required></div>
+          <div class="field"><label for="player-name">你的暱稱</label><input id="player-name" class="input" maxlength="16" autocomplete="nickname" required></div>
+          <button class="btn full" type="submit">加入公司</button>
+        </form>
+        <div id="join-error" class="error hidden"></div>
+      </section>
+    </div>
+    <p class="footer-note">不需要帳號。玩家身份與私人情報只會顯示在自己的手機。</p>
+  </main>
+  <script src="/shared.js"></script>
+  <script src="/index.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "who-sabotaged-tonight",
+  "version": "1.0.0",
+  "private": true,
+  "description": "《今晚誰搞事？》多人派對遊戲 MVP",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

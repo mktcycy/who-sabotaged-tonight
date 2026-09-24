@@ -1,0 +1,7 @@
+.git
+.github
+data
+tests
+*.md
+*.txt
+啟動遊戲.ps1
