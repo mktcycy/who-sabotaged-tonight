@@ -85,7 +85,7 @@ const EVENTS = [
     id: 'M03', stage: 'MID', title: '投資人要求成長',
     description: '投資人希望下季成長三倍，理由是簡報上的箭頭畫得很高。',
     options: [
-      option('A', '大舉投放廣告', '花錢換速度，也換來更多注意。', { money: -17, morale: 5, risk: 9 }),
+      option('A', '大舉投放廣告', '花錢換速度，也換來更多注意。', { money: -17, morale: 16, risk: 5 }),
       option('B', '穩健成長', '數字普通，但睡眠品質上升。', { money: 6, morale: 6, risk: -8 }),
       option('C', '美化預測數字', '試算表很漂亮，現實稍後處理。', { money: 12, morale: -5, risk: 18 }),
     ],
@@ -192,7 +192,14 @@ const MISSIONS = [
   { id: 'D06', text: '最終 Money + Morale ≥ 90', type: 'SUM', stats: ['money', 'morale'], operator: '>=', value: 90 },
   { id: 'B01', text: '最後三回合至少兩次投給最終執行方案', type: 'FINAL_CHOICE', rounds: [6, 7, 8], count: 2 },
   { id: 'B02', text: '全場至少三次投給該回合少數選項', type: 'MINORITY', count: 3 },
-  { id: 'B03', text: '全場至少四次投給最終執行方案', type: 'FINAL_CHOICE', rounds: [1, 2, 3, 4, 5, 6, 7, 8], count: 4 },
+  {
+    id: 'B03',
+    text: (count) => `全場至少${count}次投給最終執行方案`,
+    type: 'FINAL_CHOICE',
+    rounds: [1, 2, 3, 4, 5, 6, 7, 8],
+    count: 4,
+    countByPlayerCount: [{ min: 4, max: 6, count: 5 }, { min: 7, max: 10, count: 4 }],
+  },
   { id: 'B04', text: 'Round 6–8 至少一次投給該回合少數選項', type: 'MINORITY', rounds: [6, 7, 8], count: 1 },
 ];
 

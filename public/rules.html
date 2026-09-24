@@ -12,7 +12,7 @@
     <div class="brand"><div class="brand-mark">搞</div><div><h1>今晚誰搞事？</h1><p>完整遊戲規則書</p></div><a class="rules-link brand-action" href="/">遊戲首頁</a></div>
 
     <section class="card rules-hero">
-      <div class="eyebrow">4–10 人｜固定 8 回合｜約 40–60 分鐘</div>
+      <div class="eyebrow">4–10 人｜固定 8 回合｜討論時間由玩家控場</div>
       <h1>救公司，完成任務，<br>別讓搞事仔笑到最後。</h1>
       <p class="subtitle">一台大螢幕作為公共畫面，每位玩家使用自己的手機。你可以在遊戲任何階段開啟本頁，不會中斷或離開房間。</p>
       <nav class="rules-toc" aria-label="規則目錄">
@@ -76,7 +76,7 @@
       <ol>
         <li><strong>事件：</strong>大螢幕與手機公布本回合危機及 A／B／C 三個方案。</li>
         <li><strong>私人情報：</strong>約 30–40% 玩家取得與當前事件直接相關的真實情報。</li>
-        <li><strong>討論：</strong>預設 120 秒，玩家可以分享、隱瞞或扭曲自己知道的內容。</li>
+        <li><strong>討論：</strong>不限時間，由玩家自行控場；Host 確認討論完成後開始投票。</li>
         <li><strong>投票：</strong>玩家在手機匿名投票，送出後不可修改。</li>
         <li><strong>結果：</strong>公布各選項票數、最終方案及公司數值前後變化。</li>
         <li><strong>公司檢查：</strong>確認公司是否死亡；存活便進入下一回合。</li>
@@ -98,12 +98,13 @@
     <section id="vote" class="card rule-section">
       <div class="eyebrow">07</div><h2>討論與匿名投票</h2>
       <ul>
-        <li>討論預設 120 秒；Host 可以提前結束討論。</li>
+        <li>討論沒有倒數限制；由玩家自行控場，Host 按「開始投票」才會進入投票。</li>
         <li>投票預設 45 秒；所有在線玩家投完後保留 3 秒寬限再結算。</li>
         <li>大螢幕投票期間只顯示已投票人數，不顯示即時票數或玩家選擇。</li>
         <li>時間到、玩家離線或 Host 強制結束時，未投票者視為棄權。</li>
         <li>單一最高票方案直接執行。</li>
-        <li>最高票平票時，只從並列最高票方案中隨機決定，不重投。</li>
+        <li>首次最高票平票時，立即進行一次 10 秒快速重投，而且只能選並列最高票方案。</li>
+        <li>快速重投若仍平票，才從再次並列的方案中隨機決定。</li>
         <li>若所有人棄權，系統從 A／B／C 隨機決定。</li>
       </ul>
     </section>
@@ -142,7 +143,7 @@
 
     <section id="host" class="card rule-section">
       <div class="eyebrow">11</div><h2>Host 權限</h2>
-      <p>Host 可以開始遊戲、提前結束討論、強制結束目前階段、遊戲結束後再玩一場，以及解散遊戲。</p>
+      <p>Host 可以開始遊戲、在自由討論完成後開始投票、強制結束目前階段、遊戲結束後再玩一場，以及解散遊戲。</p>
       <p>Host 永遠看不到玩家角色、秘密任務、私人情報或個別投票。選擇「解散遊戲」會永久刪除房間及所有進度，並立即讓所有玩家退出。</p>
     </section>
 

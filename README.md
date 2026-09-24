@@ -33,6 +33,8 @@ docker run --rm -p 3000:3000 -v game-data:/app/data who-sabotaged-tonight
 
 推送至 GitHub `main` 分支後，GitHub Actions 會先執行全部測試，再發布 `ghcr.io/<owner>/who-sabotaged-tonight:latest` 容器映像。
 
+玩家版完整流程可下載 [`output/pdf/今晚誰搞事_玩家快速上手指南.pdf`](output/pdf/今晚誰搞事_玩家快速上手指南.pdf)。遊戲內也可隨時點擊「規則」查看網頁版規則書。
+
 ## 架構
 
 - `server.js`：HTTP API、SSE 即時同步、權限隔離與自動階段計時。
@@ -42,7 +44,7 @@ docker run --rm -p 3000:3000 -v game-data:/app/data who-sabotaged-tonight
 - `public/`：Host 大螢幕與玩家手機介面。
 - `data/rooms.json`：執行時建立的房間狀態，不納入版本控制。
 
-## 已採用的 V1.1 決策
+## 已採用的 V1.2 決策
 
 - Conditional Effect 一律依事件開始時的 `statsBefore` 判斷。
 - 遊戲開始後禁止新玩家加入，只允許原 Token 恢復。
@@ -56,3 +58,10 @@ docker run --rm -p 3000:3000 -v game-data:/app/data who-sabotaged-tonight
 - 玩家退出／移除只允許發生在 Lobby；遊戲中以離線處理。
 - 同時符合多個死亡條件時全部列出。
 - 投票預設 45 秒，Host 可強制結束。
+- 討論階段不限時間，由玩家自行控場並由 Host 開始投票。
+- 首次最高票平票時進行一次 10 秒快速重投；再次平票才隨機決定。
+- 行為任務 B03 依人數調整：4–6 人需投中最終方案 5 次，7–10 人需 4 次。
+
+## 未來優化方向
+
+- 擴充事件池，或為同一事件提供多組隨機效果與條件變體，避免熟悉事件後直接記住最佳選項，持續保留私人情報、討論與搞事仔誤導的價值。

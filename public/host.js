@@ -86,7 +86,8 @@ function resultHtml() {
   const choice = event.options.find((item) => item.id === result.resolvedOptionId);
   const delta = (stat) => result.statsAfter[stat] - result.statsBefore[stat];
   return `<section class="card"><div class="eyebrow">Round ${result.round} 決策結果</div><h2 class="title">${result.resolvedOptionId}｜${App.escapeHtml(choice.title)}</h2>
-    ${result.tiedOptionIds.length > 1 ? `<p class="subtitle">最高票平票：${result.tiedOptionIds.join('／')}，系統隨機選出 ${result.resolvedOptionId}。</p>` : ''}
+    ${result.initialVoteResult ? `<p class="notice">首次投票由 ${result.initialVoteResult.tiedOptionIds.join('、')} 平手，已完成 10 秒快速重投。</p>` : ''}
+    ${result.tiedOptionIds.length > 1 ? `<p class="subtitle">快速重投仍平票：${result.tiedOptionIds.join('、')}，系統隨機選出 ${result.resolvedOptionId}。</p>` : ''}
     <div class="result-grid">${['A', 'B', 'C'].map((id) => `<div class="vote-count ${id === result.resolvedOptionId ? 'winner' : ''}"><span>${id}</span><strong>${result.voteCounts[id]}</strong><small>票</small></div>`).join('')}</div>
     <p class="subtitle">棄權 ${result.abstainCount} 人</p>
     <div class="delta">${['money', 'morale', 'risk'].map((stat) => { const change = delta(stat); return `<div><small>${stat.toUpperCase()}</small><strong>${result.statsBefore[stat]} → ${result.statsAfter[stat]}</strong><br><span class="${change >= 0 ? 'positive' : 'negative'}">${change >= 0 ? '+' : ''}${change}</span></div>`; }).join('')}</div>
@@ -111,10 +112,12 @@ function finalHtml() {
 function phaseMainHtml() {
   if (state.phase === 'ROLE') return '<section class="card role"><div class="role-icon">📱</div><div class="eyebrow">秘密資料已發送</div><h2>請查看自己的手機</h2><p class="subtitle">不要讓旁邊的人看到你的身份與任務。</p><div id="timer" class="timer"></div></section>';
   if (state.phase === 'ROUND_START') return `<section class="card role"><div class="eyebrow">新的一輪會議</div><h2 class="title">Round ${state.round} / 8</h2><p class="subtitle">請各位把專業表情準備好。</p><div id="timer" class="timer"></div></section>`;
-  if (['EVENT', 'INTEL', 'DISCUSSION'].includes(state.phase)) return `<section class="card">${App.eventHtml(state.event)}${state.phase === 'INTEL' ? '<div class="intel">私人情報已發送到部分玩家手機。系統情報永遠為真。</div>' : ''}${state.phase === 'DISCUSSION' ? '<h3>討論時間</h3>' : ''}<div id="timer" class="timer"></div></section>`;
-  if (state.phase === 'VOTE') {
+  if (['EVENT', 'INTEL'].includes(state.phase)) return `<section class="card">${App.eventHtml(state.event)}${state.phase === 'INTEL' ? '<div class="intel">私人情報已發送到部分玩家手機。系統情報永遠為真。</div>' : ''}<div id="timer" class="timer"></div></section>`;
+  if (state.phase === 'DISCUSSION') return `<section class="card">${App.eventHtml(state.event)}<div class="intel"><strong>自由討論，不限時間</strong><br>由玩家自行控場；討論完成後請 Host 按「開始投票」。</div></section>`;
+  if (['VOTE', 'REVOTE'].includes(state.phase)) {
     const percent = state.voteProgress.total ? Math.round(state.voteProgress.submitted / state.voteProgress.total * 100) : 0;
-    return `<section class="card role"><div class="eyebrow">匿名投票中</div><h2 class="title">已投票 ${state.voteProgress.submitted} / ${state.voteProgress.total}</h2><progress max="100" value="${percent}"></progress><div id="timer" class="timer"></div><p class="subtitle">大螢幕不會顯示即時票數或玩家選項。</p></section>`;
+    const revote = state.phase === 'REVOTE';
+    return `<section class="card role"><div class="eyebrow">${revote ? '平票快速重投' : '匿名投票中'}</div><h2 class="title">已投票 ${state.voteProgress.submitted} / ${state.voteProgress.total}</h2>${revote ? `<p class="subtitle">只可選擇並列的 ${state.allowedVoteOptionIds.join('、')}；10 秒後若仍平票將隨機決定。</p>` : ''}<progress max="100" value="${percent}"></progress><div id="timer" class="timer"></div><p class="subtitle">大螢幕不會顯示即時票數或玩家選項。</p></section>`;
   }
   if (state.phase === 'RESULT' || state.phase === 'CHECK_COMPANY') return resultHtml();
   if (state.phase === 'NEXT_ROUND') return `<section class="card role"><div class="eyebrow">公司還活著</div><h2 class="title">準備 Round ${state.round + 1}</h2><div id="timer" class="timer"></div></section>`;
@@ -123,8 +126,9 @@ function phaseMainHtml() {
 }
 
 function advanceLabel() {
-  if (state.phase === 'DISCUSSION') return '提前結束討論';
+  if (state.phase === 'DISCUSSION') return '開始投票';
   if (state.phase === 'VOTE') return '強制結束投票';
+  if (state.phase === 'REVOTE') return '強制結束快速重投';
   return '強制進入下一階段';
 }
 
@@ -154,7 +158,7 @@ function revealNext(index) {
 
 async function perform(action, button) {
   if (busy) return;
-  if (action === 'ADVANCE' && state.phase === 'VOTE' && !confirm('確定強制結束投票？未投票者將視為棄權。')) return;
+  if (action === 'ADVANCE' && ['VOTE', 'REVOTE'].includes(state.phase) && !confirm('確定強制結束投票？未投票者將視為棄權。')) return;
   if (action === 'DISBAND' && !confirm('確定解散遊戲？房間、角色、投票與進度都會永久刪除，所有玩家將立即退出。')) return;
   busy = true;
   button.disabled = true;

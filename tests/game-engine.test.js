@@ -13,6 +13,9 @@ const {
   deathReasons,
   evaluateMission,
   minorityOptions,
+  missionRequiredCount,
+  missionText,
+  PHASE_DURATIONS,
   resolveVotes,
   restartToLobby,
   saboteurCount,
@@ -44,6 +47,21 @@ test('內容池包含 18 個事件、三階段各 6 個，且每事件固定三�
     assert.ok(event.options.every((option) => !option.conditionalEffect || typeof option.conditionalEffect === 'object'));
   }
   assert.equal(MISSIONS.length, 20);
+});
+
+test('每個事件的基本效果都不存在全面劣於另一選項的方案', () => {
+  for (const event of EVENTS) {
+    for (const candidate of event.options) {
+      const dominated = event.options.some((other) => other !== candidate
+        && other.effects.money >= candidate.effects.money
+        && other.effects.morale >= candidate.effects.morale
+        && other.effects.risk <= candidate.effects.risk
+        && (other.effects.money > candidate.effects.money
+          || other.effects.morale > candidate.effects.morale
+          || other.effects.risk < candidate.effects.risk));
+      assert.equal(dominated, false, `${event.id} 的 ${candidate.id} 為全面劣勢選項`);
+    }
+  }
 });
 
 test('4–7 人一名搞事仔，8–10 人兩名', () => {
@@ -97,6 +115,29 @@ test('單一最高票、最高票平票與全員棄權皆正確', () => {
   const allAbstain = resolveVotes({}, ids, fixedRng(0.99));
   assert.deepEqual(allAbstain.tiedOptionIds, ['A', 'B', 'C']);
   assert.equal(allAbstain.resolvedOptionId, 'C');
+  const restricted = resolveVotes({ p1: 'A', p2: 'B' }, ids, fixedRng(0.99), ['A', 'B']);
+  assert.deepEqual(restricted.tiedOptionIds, ['A', 'B']);
+});
+
+test('討論階段不限時間，首次平票進入一次 10 秒快速重投', () => {
+  assert.equal(PHASE_DURATIONS.DISCUSSION, null);
+  assert.equal(PHASE_DURATIONS.REVOTE, 10_000);
+  const room = roomWith(4);
+  startGame(room, 1000, fixedRng(0.2));
+  room.phase = 'VOTE';
+  room.game.currentEventId = room.game.eventDeck[0];
+  room.game.votes = { p1: 'A', p2: 'A', p3: 'B', p4: 'B' };
+  advancePhase(room, 2000, fixedRng(0));
+  assert.equal(room.phase, 'REVOTE');
+  assert.equal(room.phaseEndsAt, 12_000);
+  assert.deepEqual(room.game.revoteOptionIds, ['A', 'B']);
+  assert.deepEqual(room.game.votes, {});
+
+  room.game.votes = { p1: 'A', p2: 'A', p3: 'B', p4: 'B' };
+  advancePhase(room, 3000, fixedRng(0.99));
+  assert.equal(room.phase, 'RESULT');
+  assert.equal(room.game.currentResult.resolvedOptionId, 'B');
+  assert.deepEqual(room.game.currentResult.initialVoteResult.tiedOptionIds, ['A', 'B']);
 });
 
 test('少數選項排除零票、棄權及全同票', () => {
@@ -123,6 +164,21 @@ test('行為型任務按最終選項與嚴格少數定義計算', () => {
   const minority = { type: 'MINORITY', rounds: [6, 7, 8], count: 1 };
   assert.equal(evaluateMission(finalChoice, 'p1', {}, history).success, true);
   assert.equal(evaluateMission(minority, 'p1', {}, history).success, true);
+});
+
+test('B03 行為任務依玩家人數調整所需次數', () => {
+  const mission = MISSIONS.find((item) => item.id === 'B03');
+  assert.equal(missionRequiredCount(mission, 4), 5);
+  assert.equal(missionRequiredCount(mission, 6), 5);
+  assert.equal(missionRequiredCount(mission, 7), 4);
+  assert.equal(missionRequiredCount(mission, 10), 4);
+  assert.match(missionText(mission, 4), /5次/);
+  assert.match(missionText(mission, 10), /4次/);
+  const history = Array.from({ length: 4 }, (_, index) => ({
+    round: index + 1, votes: { p1: 'A' }, resolvedOptionId: 'A', voteCounts: { A: 4, B: 0, C: 0 },
+  }));
+  assert.equal(evaluateMission(mission, 'p1', {}, history, 4).success, false);
+  assert.equal(evaluateMission(mission, 'p1', {}, history, 7).success, true);
 });
 
 test('完整狀態機跑完 8 回合且每回合只留一筆紀錄', () => {

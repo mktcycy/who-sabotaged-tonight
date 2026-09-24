@@ -148,7 +148,12 @@ test('7 名玩家可經 API 完成八回合，秘密資料不外洩且重複操�
     }
 
     const versionBeforeAdvance = hostView.phaseVersion;
-    await hostAction(created.roomCode, created.hostToken, hostView, 'ADVANCE');
+    try {
+      await hostAction(created.roomCode, created.hostToken, hostView, 'ADVANCE');
+    } catch (error) {
+      if (/畫面狀態已更新/.test(error.message)) continue;
+      throw error;
+    }
     if (!staleAdvanceBlocked) {
       await assert.rejects(() => api(`/api/rooms/${created.roomCode}/action`, {
         method: 'POST',
@@ -179,4 +184,65 @@ test('Host 解散房間後，房間與所有玩家 Token 立即失效', async ()
   assert.equal(result.disbanded, true);
   await assert.rejects(() => api(`/api/rooms/${created.roomCode}/view?token=${created.hostToken}`), (error) => error.status === 404);
   await assert.rejects(() => api(`/api/rooms/${created.roomCode}/view?token=${joined.playerToken}`), (error) => error.status === 404);
+});
+
+test('首次平票只重投並列方案，重投再平票後完成結算', async () => {
+  const created = await api('/api/rooms', { method: 'POST' });
+  const joined = [];
+  for (let index = 1; index <= 4; index += 1) {
+    joined.push(await api(`/api/rooms/${created.roomCode}/join`, { method: 'POST', body: { name: `重投玩家${index}` } }));
+  }
+
+  let hostView = await api(`/api/rooms/${created.roomCode}/view?token=${created.hostToken}`);
+  await hostAction(created.roomCode, created.hostToken, hostView, 'START');
+  for (let guard = 0; guard < 10; guard += 1) {
+    hostView = await api(`/api/rooms/${created.roomCode}/view?token=${created.hostToken}`);
+    if (hostView.phase === 'VOTE') break;
+    await hostAction(created.roomCode, created.hostToken, hostView, 'ADVANCE');
+  }
+  hostView = await api(`/api/rooms/${created.roomCode}/view?token=${created.hostToken}`);
+  assert.equal(hostView.phase, 'VOTE');
+
+  const [firstId, secondId, excludedId] = hostView.event.options.map((option) => option.id);
+  for (let index = 0; index < joined.length; index += 1) {
+    await api(`/api/rooms/${created.roomCode}/action`, {
+      method: 'POST',
+      body: {
+        action: 'VOTE',
+        optionId: index < 2 ? firstId : secondId,
+        token: joined[index].playerToken,
+        expectedPhaseVersion: hostView.phaseVersion,
+      },
+    });
+  }
+  await hostAction(created.roomCode, created.hostToken, hostView, 'ADVANCE');
+
+  hostView = await api(`/api/rooms/${created.roomCode}/view?token=${created.hostToken}`);
+  assert.equal(hostView.phase, 'REVOTE');
+  assert.deepEqual(hostView.allowedVoteOptionIds, [firstId, secondId]);
+  assert.equal(hostView.phaseEndsAt - hostView.serverNow <= 10_000, true);
+  await assert.rejects(() => api(`/api/rooms/${created.roomCode}/action`, {
+    method: 'POST',
+    body: {
+      action: 'VOTE', optionId: excludedId, token: joined[0].playerToken, expectedPhaseVersion: hostView.phaseVersion,
+    },
+  }), /選項/);
+
+  for (let index = 0; index < joined.length; index += 1) {
+    await api(`/api/rooms/${created.roomCode}/action`, {
+      method: 'POST',
+      body: {
+        action: 'VOTE',
+        optionId: index < 2 ? firstId : secondId,
+        token: joined[index].playerToken,
+        expectedPhaseVersion: hostView.phaseVersion,
+      },
+    });
+  }
+  await hostAction(created.roomCode, created.hostToken, hostView, 'ADVANCE');
+  hostView = await api(`/api/rooms/${created.roomCode}/view?token=${created.hostToken}`);
+  assert.equal(hostView.phase, 'RESULT');
+  assert.equal(hostView.result.initialVoteResult.tiedOptionIds.length, 2);
+  assert.equal(hostView.result.tiedOptionIds.length, 2);
+  assert.equal([firstId, secondId].includes(hostView.result.resolvedOptionId), true);
 });

@@ -9,8 +9,9 @@ const PHASE_DURATIONS = Object.freeze({
   ROUND_START: 5_000,
   EVENT: 10_000,
   INTEL: 15_000,
-  DISCUSSION: 120_000,
+  DISCUSSION: null,
   VOTE: 45_000,
+  REVOTE: 10_000,
   RESULT: 15_000,
   CHECK_COMPANY: 0,
   NEXT_ROUND: 5_000,
@@ -146,14 +147,14 @@ function countVotes(votes) {
   return counts;
 }
 
-function resolveVotes(votes, playerIds, rng = defaultRng) {
+function resolveVotes(votes, playerIds, rng = defaultRng, optionIds = ['A', 'B', 'C']) {
   const counts = countVotes(votes);
   const submittedIds = new Set(Object.keys(votes));
   const abstainedPlayerIds = playerIds.filter((id) => !submittedIds.has(id));
-  const highest = Math.max(counts.A, counts.B, counts.C);
+  const highest = Math.max(...optionIds.map((optionId) => counts[optionId]));
   const tiedOptionIds = highest === 0
-    ? ['A', 'B', 'C']
-    : Object.entries(counts).filter(([, count]) => count === highest).map(([id]) => id);
+    ? [...optionIds]
+    : optionIds.filter((optionId) => counts[optionId] === highest);
   const resolvedOptionId = tiedOptionIds[Math.floor(rng() * tiedOptionIds.length)];
   return { counts, abstainedPlayerIds, tiedOptionIds, resolvedOptionId };
 }
@@ -167,7 +168,19 @@ function minorityOptions(counts) {
   return positive.filter(([, count]) => count === minimum).map(([id]) => id);
 }
 
-function evaluateMission(mission, playerId, company, roundHistory) {
+function missionRequiredCount(mission, playerCount) {
+  if (!mission?.countByPlayerCount) return mission?.count;
+  const bracket = mission.countByPlayerCount.find((item) => playerCount >= item.min && playerCount <= item.max);
+  return bracket?.count ?? mission.count;
+}
+
+function missionText(mission, playerCount) {
+  if (!mission) return null;
+  const count = missionRequiredCount(mission, playerCount);
+  return typeof mission.text === 'function' ? mission.text(count) : mission.text;
+}
+
+function evaluateMission(mission, playerId, company, roundHistory, playerCount = 7) {
   if (!mission) return { success: false, actual: '沒有秘密任務' };
   let success = false;
   let actual = '';
@@ -189,16 +202,18 @@ function evaluateMission(mission, playerId, company, roundHistory) {
     success = compare(sum, mission.operator, mission.value);
     actual = `${mission.stats.join(' + ')} = ${sum}`;
   } else if (mission.type === 'FINAL_CHOICE') {
+    const requiredCount = missionRequiredCount(mission, playerCount);
     const matching = roundHistory.filter((record) => mission.rounds.includes(record.round)
       && record.votes[playerId] === record.resolvedOptionId).length;
-    success = matching >= mission.count;
-    actual = `完成 ${matching} 次／需要 ${mission.count} 次`;
+    success = matching >= requiredCount;
+    actual = `完成 ${matching} 次／需要 ${requiredCount} 次`;
   } else if (mission.type === 'MINORITY') {
+    const requiredCount = missionRequiredCount(mission, playerCount);
     const allowedRounds = mission.rounds || roundHistory.map((record) => record.round);
     const matching = roundHistory.filter((record) => allowedRounds.includes(record.round)
       && minorityOptions(record.voteCounts).includes(record.votes[playerId])).length;
-    success = matching >= mission.count;
-    actual = `完成 ${matching} 次／需要 ${mission.count} 次`;
+    success = matching >= requiredCount;
+    actual = `完成 ${matching} 次／需要 ${requiredCount} 次`;
   }
   return { success, actual };
 }
@@ -210,13 +225,13 @@ function buildFinalResults(room) {
   const normalResults = room.players.filter((player) => player.role === 'NORMAL').map((player) => {
     const mission = MISSION_BY_ID.get(player.secretMissionId);
     const evaluation = companyAlive
-      ? evaluateMission(mission, player.id, room.company, room.game.roundHistory)
+      ? evaluateMission(mission, player.id, room.company, room.game.roundHistory, room.players.length)
       : { success: false, actual: '公司未能活過 Round 8' };
     return {
       playerId: player.id,
       name: player.name,
       role: player.role,
-      mission: mission.text,
+      mission: missionText(mission, room.players.length),
       actual: evaluation.actual,
       win: companyAlive && evaluation.success,
     };
@@ -253,6 +268,8 @@ function startGame(room, now = Date.now(), rng = defaultRng) {
     currentIntelAssignments: {},
     votes: {},
     voteGraceApplied: false,
+    initialVoteResult: null,
+    revoteOptionIds: null,
     currentResult: null,
     roundHistory: [],
     finalResults: null,
@@ -262,20 +279,22 @@ function startGame(room, now = Date.now(), rng = defaultRng) {
   return room;
 }
 
-function resolveCurrentVote(room, rng) {
+function resolveCurrentVote(room, rng, optionIds = ['A', 'B', 'C'], voteResult = null) {
   const event = EVENT_BY_ID.get(room.game.currentEventId);
-  const voteResult = resolveVotes(room.game.votes, room.players.map((player) => player.id), rng);
-  const choice = event.options.find((item) => item.id === voteResult.resolvedOptionId);
+  const finalVoteResult = voteResult || resolveVotes(room.game.votes, room.players.map((player) => player.id), rng, optionIds);
+  const choice = event.options.find((item) => item.id === finalVoteResult.resolvedOptionId);
   const effectResult = applyDecision(room.company, choice);
   room.company = effectResult.statsAfter;
   const record = {
     round: room.round,
     eventId: event.id,
     votes: { ...room.game.votes },
-    voteCounts: voteResult.counts,
-    abstainedPlayerIds: voteResult.abstainedPlayerIds,
-    tiedOptionIds: voteResult.tiedOptionIds,
-    resolvedOptionId: voteResult.resolvedOptionId,
+    voteCounts: finalVoteResult.counts,
+    abstainedPlayerIds: finalVoteResult.abstainedPlayerIds,
+    tiedOptionIds: finalVoteResult.tiedOptionIds,
+    resolvedOptionId: finalVoteResult.resolvedOptionId,
+    initialVoteResult: room.game.initialVoteResult,
+    revoteOptionIds: room.game.revoteOptionIds,
     ...effectResult,
   };
   room.game.currentResult = record;
@@ -304,10 +323,31 @@ function advancePhase(room, now = Date.now(), rng = defaultRng) {
     case 'DISCUSSION':
       room.game.votes = {};
       room.game.voteGraceApplied = false;
+      room.game.initialVoteResult = null;
+      room.game.revoteOptionIds = null;
       setPhase(room, 'VOTE', now);
       break;
-    case 'VOTE':
-      resolveCurrentVote(room, rng);
+    case 'VOTE': {
+      const voteResult = resolveVotes(room.game.votes, room.players.map((player) => player.id), rng);
+      const hasSubmittedVote = Object.values(voteResult.counts).some((count) => count > 0);
+      if (hasSubmittedVote && voteResult.tiedOptionIds.length > 1) {
+        room.game.initialVoteResult = {
+          voteCounts: voteResult.counts,
+          abstainedPlayerIds: voteResult.abstainedPlayerIds,
+          tiedOptionIds: voteResult.tiedOptionIds,
+        };
+        room.game.revoteOptionIds = voteResult.tiedOptionIds;
+        room.game.votes = {};
+        room.game.voteGraceApplied = false;
+        setPhase(room, 'REVOTE', now);
+      } else {
+        resolveCurrentVote(room, rng, ['A', 'B', 'C'], voteResult);
+        setPhase(room, 'RESULT', now);
+      }
+      break;
+    }
+    case 'REVOTE':
+      resolveCurrentVote(room, rng, room.game.revoteOptionIds);
       setPhase(room, 'RESULT', now);
       break;
     case 'RESULT':
@@ -372,6 +412,8 @@ module.exports = {
   deathReasons,
   evaluateMission,
   minorityOptions,
+  missionRequiredCount,
+  missionText,
   resolveVotes,
   restartToLobby,
   saboteurCount,

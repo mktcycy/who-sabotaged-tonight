@@ -30,8 +30,9 @@ function simulateGame(gameIndex, playerCount = 7) {
   let transitions = 0;
   while (room.status === 'PLAYING') {
     if (transitions > 100) throw new Error(`狀態機疑似無限循環：game ${gameIndex}`);
-    if (room.phase === 'VOTE') {
-      for (const player of room.players) room.game.votes[player.id] = ['A', 'B', 'C'][Math.floor(rng() * 3)];
+    if (['VOTE', 'REVOTE'].includes(room.phase)) {
+      const optionIds = room.phase === 'REVOTE' ? room.game.revoteOptionIds : ['A', 'B', 'C'];
+      for (const player of room.players) room.game.votes[player.id] = optionIds[Math.floor(rng() * optionIds.length)];
     }
     advancePhase(room, transitions + 1, rng);
     transitions += 1;

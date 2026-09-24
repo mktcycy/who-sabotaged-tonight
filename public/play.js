@@ -111,7 +111,7 @@ function roleHtml() {
 }
 
 function intelBlock() {
-  if (!['INTEL', 'DISCUSSION', 'VOTE', 'RESULT', 'CHECK_COMPANY'].includes(state.phase)) return '';
+  if (!['INTEL', 'DISCUSSION', 'VOTE', 'REVOTE', 'RESULT', 'CHECK_COMPANY'].includes(state.phase)) return '';
   return `<section class="card secret"><div class="eyebrow">本回合私人情報</div><div class="intel">${App.escapeHtml(state.private.intel || '本回合沒有額外情報。')}</div><p class="subtitle">系統情報 100% 真實；你可以隱瞞、只說一部分，或自己說謊。</p></section>`;
 }
 
@@ -120,8 +120,9 @@ function resultHtml() {
   if (!result) return '<section class="card notice">正在結算…</section>';
   const choice = state.event.options.find((item) => item.id === result.resolvedOptionId);
   return `<section class="card"><div class="eyebrow">投票結果</div><h2>${result.resolvedOptionId}｜${App.escapeHtml(choice.title)}</h2>
+    ${result.initialVoteResult ? `<p class="notice">首次投票平手，已完成 10 秒快速重投。</p>` : ''}
     <div class="result-grid">${['A', 'B', 'C'].map((id) => `<div class="vote-count ${id === result.resolvedOptionId ? 'winner' : ''}"><span>${id}</span><strong>${result.voteCounts[id]}</strong></div>`).join('')}</div>
-    <p class="subtitle">棄權 ${result.abstainCount} 人${result.tiedOptionIds.length > 1 ? `；平票後隨機選出 ${result.resolvedOptionId}` : ''}</p>
+    <p class="subtitle">棄權 ${result.abstainCount} 人${result.tiedOptionIds.length > 1 ? `；快速重投仍平票，隨機選出 ${result.resolvedOptionId}` : ''}</p>
     ${result.conditionalApplied ? `<div class="intel"><strong>條件效果觸發</strong><br>${App.escapeHtml(result.conditionalDescription)}</div>` : ''}</section>`;
 }
 
@@ -137,8 +138,9 @@ function phaseHtml() {
   if (state.phase === 'ROUND_START') return `<section class="card role"><div class="eyebrow">回到會議室</div><h2 class="title">Round ${state.round} / 8</h2><div id="timer" class="timer"></div></section>${secretSummary()}`;
   if (state.phase === 'EVENT') return `<section class="card">${App.eventHtml(state.event)}<div id="timer" class="timer"></div></section>${secretSummary()}`;
   if (state.phase === 'INTEL') return `${intelBlock()}<section class="card">${App.eventHtml(state.event)}<div id="timer" class="timer"></div></section>${secretSummary()}`;
-  if (state.phase === 'DISCUSSION') return `${intelBlock()}<section class="card"><div class="eyebrow">討論時間</div><div id="timer" class="timer"></div>${App.eventHtml(state.event)}</section>${secretSummary()}`;
+  if (state.phase === 'DISCUSSION') return `${intelBlock()}<section class="card"><div class="eyebrow">自由討論</div><div class="intel"><strong>不限時間，由玩家自行控場</strong><br>討論完成後，請 Host 開始投票。</div>${App.eventHtml(state.event)}</section>${secretSummary()}`;
   if (state.phase === 'VOTE') return `${intelBlock()}<section class="card"><div class="eyebrow">匿名投票</div><h2>做出你的決定</h2>${state.private.hasVoted ? `<div class="notice">你已投給 ${state.private.selectedOptionId}，等待其他玩家。</div>` : ''}${App.eventHtml(state.event, true, state.private.selectedOptionId, state.private.hasVoted)}<div id="timer" class="timer"></div></section>${secretSummary()}`;
+  if (state.phase === 'REVOTE') return `${intelBlock()}<section class="card"><div class="eyebrow">10 秒快速重投</div><h2>只選並列方案</h2><p class="subtitle">可選 ${state.allowedVoteOptionIds.join('、')}；若再次平票，系統將隨機決定。</p>${state.private.hasVoted ? `<div class="notice">你已投給 ${state.private.selectedOptionId}，等待重投結算。</div>` : ''}${App.eventHtml(state.event, true, state.private.selectedOptionId, state.private.hasVoted, state.allowedVoteOptionIds)}<div id="timer" class="timer"></div></section>${secretSummary()}`;
   if (state.phase === 'RESULT' || state.phase === 'CHECK_COMPANY') return `${resultHtml()}${secretSummary()}`;
   if (state.phase === 'NEXT_ROUND') return `<section class="card role"><h2>公司暫時活下來了</h2><p class="subtitle">下一輪的問題正在排隊。</p><div id="timer" class="timer"></div></section>${secretSummary()}`;
   if (state.phase === 'FINAL' || state.phase === 'GAME_OVER') return finalHtml();

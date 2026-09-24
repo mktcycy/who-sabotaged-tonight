@@ -2,3 +2,4 @@ data/rooms.json
 data/rooms.json.tmp
 node_modules/
 *.log
+tmp/

@@ -9,6 +9,7 @@ const { EVENT_BY_ID, MISSION_BY_ID } = require('./src/content');
 const {
   INITIAL_COMPANY,
   advancePhase,
+  missionText,
   restartToLobby,
   startGame,
 } = require('./src/game-engine');
@@ -65,6 +66,12 @@ function publicResult(room) {
     abstainCount: result.abstainedPlayerIds.length,
     tiedOptionIds: result.tiedOptionIds,
     resolvedOptionId: result.resolvedOptionId,
+    initialVoteResult: result.initialVoteResult ? {
+      voteCounts: result.initialVoteResult.voteCounts,
+      abstainCount: result.initialVoteResult.abstainedPlayerIds.length,
+      tiedOptionIds: result.initialVoteResult.tiedOptionIds,
+    } : null,
+    revoteOptionIds: result.revoteOptionIds,
     statsBefore: result.statsBefore,
     statsAfter: result.statsAfter,
     baseEffects: result.baseEffects,
@@ -80,12 +87,12 @@ function sanitizeRoom(room, viewer) {
   const player = viewer.type === 'PLAYER' ? viewer.player : null;
   const privateData = player && room.status !== 'LOBBY' ? {
     role: player.role,
-    mission: player.secretMissionId ? MISSION_BY_ID.get(player.secretMissionId)?.text : null,
+    mission: player.secretMissionId ? missionText(MISSION_BY_ID.get(player.secretMissionId), room.players.length) : null,
     saboteurGoal: player.role === 'SABOTEUR' ? '讓公司以 Risk ≥ 70 存活，或在 Round 6–8 倒閉。' : null,
     partners: player.role === 'SABOTEUR'
       ? room.players.filter((candidate) => candidate.role === 'SABOTEUR' && candidate.id !== player.id).map((candidate) => candidate.name)
       : [],
-    intel: ['INTEL', 'DISCUSSION', 'VOTE', 'RESULT', 'CHECK_COMPANY'].includes(room.phase)
+    intel: ['INTEL', 'DISCUSSION', 'VOTE', 'REVOTE', 'RESULT', 'CHECK_COMPANY'].includes(room.phase)
       ? (room.game?.currentIntelAssignments[player.id] || null)
       : null,
     hasVoted: Object.hasOwn(votes, player.id),
@@ -110,6 +117,9 @@ function sanitizeRoom(room, viewer) {
       submitted: Object.keys(votes).length,
       total: room.players.length,
     },
+    allowedVoteOptionIds: room.phase === 'REVOTE'
+      ? [...(room.game?.revoteOptionIds || [])]
+      : ['A', 'B', 'C'],
     result: publicResult(room),
     deathReasons: room.game?.deathReasons || [],
     finalResults: ['FINAL', 'GAME_OVER'].includes(room.phase) ? room.game?.finalResults : null,
@@ -295,11 +305,12 @@ async function handleAction(roomCode, request, response) {
     }
     if (action === 'VOTE') {
       if (viewer.type !== 'PLAYER') throw new Error('只有玩家可以投票');
-      if (room.status !== 'PLAYING' || room.phase !== 'VOTE') throw new Error('目前不是投票階段');
+      if (room.status !== 'PLAYING' || !['VOTE', 'REVOTE'].includes(room.phase)) throw new Error('目前不是投票階段');
       if (Object.hasOwn(room.game.votes, viewer.player.id)) throw new Error('本回合已投票');
       const optionId = String(body.optionId || '');
       const event = EVENT_BY_ID.get(room.game.currentEventId);
-      if (!event.options.some((choice) => choice.id === optionId)) throw new Error('無效選項');
+      const allowedOptionIds = room.phase === 'REVOTE' ? room.game.revoteOptionIds : event.options.map((choice) => choice.id);
+      if (!allowedOptionIds.includes(optionId)) throw new Error('無效選項');
       room.game.votes[viewer.player.id] = optionId;
       const onlinePlayers = room.players.filter((player) => player.connected);
       const allOnlineVoted = onlinePlayers.length > 0
