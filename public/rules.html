@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>完整規則書｜今晚誰搞事？</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body id="top">
+  <main class="shell rules-shell">
+    <div class="brand"><div class="brand-mark">搞</div><div><h1>今晚誰搞事？</h1><p>完整遊戲規則書</p></div><a class="rules-link brand-action" href="/">遊戲首頁</a></div>
+
+    <section class="card rules-hero">
+      <div class="eyebrow">4–10 人｜固定 8 回合｜約 40–60 分鐘</div>
+      <h1>救公司，完成任務，<br>別讓搞事仔笑到最後。</h1>
+      <p class="subtitle">一台大螢幕作為公共畫面，每位玩家使用自己的手機。你可以在遊戲任何階段開啟本頁，不會中斷或離開房間。</p>
+      <nav class="rules-toc" aria-label="規則目錄">
+        <a href="#goal">1. 遊戲目標</a><a href="#setup">2. 開局方式</a><a href="#company">3. 公司數值</a>
+        <a href="#roles">4. 身份勝負</a><a href="#round">5. 每回合流程</a><a href="#intel">6. 私人情報</a>
+        <a href="#vote">7. 討論投票</a><a href="#missions">8. 秘密任務</a><a href="#ending">9. 最終結算</a>
+        <a href="#disconnect">10. 斷線恢復</a><a href="#host">11. Host 權限</a><a href="#faq">12. 常見問題</a>
+      </nav>
+    </section>
+
+    <section id="goal" class="card rule-section">
+      <div class="eyebrow">01</div><h2>遊戲目標</h2>
+      <p>所有人表面上都是公司決策團隊。每回合會遇到一個荒謬的職場危機，玩家討論後匿名投票，最高票方案成為公司的正式決策。</p>
+      <p>普通玩家想讓公司活過第 8 回合並完成自己的秘密任務；搞事仔則想讓公司維持在危險邊緣，或在後期漂亮地倒閉。</p>
+      <div class="rule-callout"><strong>這不是抓人投票遊戲。</strong>玩家不會投票淘汰某人，也不需要正式指認搞事仔。勝負完全依公司狀態、倒閉時機與個人任務決定。</div>
+    </section>
+
+    <section id="setup" class="card rule-section">
+      <div class="eyebrow">02</div><h2>開局方式</h2>
+      <ol>
+        <li>在大螢幕開啟遊戲首頁，選擇「建立遊戲」。</li>
+        <li>玩家掃描 QR Code，或以手機輸入 4 位數房號。</li>
+        <li>輸入 1–16 字元的暱稱；同房不可使用重複暱稱。</li>
+        <li>4 人以上即可開始，最多 10 人。遊戲開始後不再接受新玩家，只允許原玩家恢復連線。</li>
+        <li>開始後查看自己手機上的身份與秘密目標，不要讓其他人看到。</li>
+      </ol>
+      <table class="rule-table"><thead><tr><th>玩家人數</th><th>搞事仔人數</th><th>建議</th></tr></thead><tbody>
+        <tr><td>4–7 人</td><td>1 人</td><td>7 人是主要平衡基準</td></tr>
+        <tr><td>8–10 人</td><td>2 人</td><td>兩名搞事仔互相知道身份並共享勝敗</td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="company" class="card rule-section">
+      <div class="eyebrow">03</div><h2>公司只有三項數值</h2>
+      <table class="rule-table"><thead><tr><th>指標</th><th>初始值</th><th>公司死亡條件</th></tr></thead><tbody>
+        <tr><td><strong class="positive">Money 資金</strong></td><td>60</td><td>降至 0：公司破產</td></tr>
+        <tr><td><strong>Morale 士氣</strong></td><td>60</td><td>降至 0：員工集體離職</td></tr>
+        <tr><td><strong class="negative">Risk 風險</strong></td><td>20</td><td>升至 100：公司爆炸</td></tr>
+      </tbody></table>
+      <p>三項數值永遠限制在 0–100。事件效果套用完畢後，任何一項達到死亡條件都會立即結束遊戲；若同時觸發多項，系統會全部列出。</p>
+      <p>部分選項具有條件效果，例如「事件開始時 Morale &lt; 40，Risk 額外 +10」。條件一律依事件開始時的數值判斷，不受該選項的基本效果影響。</p>
+    </section>
+
+    <section id="roles" class="card rule-section">
+      <div class="eyebrow">04</div><h2>身份與勝負</h2>
+      <h3>普通玩家</h3>
+      <ul><li>公司必須完整活過 Round 8。</li><li>公司存活後，再依自己的秘密任務個別判定 WIN／LOSE。</li><li>公司中途倒閉，所有普通玩家一律 LOSE。</li></ul>
+      <h3>搞事仔</h3>
+      <ul>
+        <li>公司活過 Round 8，且最終 Risk ≥ 70：搞事仔 WIN。</li>
+        <li>公司在 Round 6–8 因任何死亡條件倒閉：搞事仔 WIN。</li>
+        <li>公司在 Round 1–5 倒閉：搞事仔也 LOSE，全員失敗。</li>
+        <li>搞事仔沒有普通秘密任務；手機會顯示固定破壞目標。</li>
+      </ul>
+      <div class="rule-callout">搞事仔不是越快搞垮公司越好。前五回合倒閉會導致全員失敗，必須控制破壞節奏。</div>
+    </section>
+
+    <section id="round" class="card rule-section">
+      <div class="eyebrow">05</div><h2>每回合固定流程</h2>
+      <div class="rule-flow"><span>事件</span><span>→</span><span>私人情報</span><span>→</span><span>討論</span><span>→</span><span>匿名投票</span><span>→</span><span>結果</span><span>→</span><span>公司檢查</span></div>
+      <ol>
+        <li><strong>事件：</strong>大螢幕與手機公布本回合危機及 A／B／C 三個方案。</li>
+        <li><strong>私人情報：</strong>約 30–40% 玩家取得與當前事件直接相關的真實情報。</li>
+        <li><strong>討論：</strong>預設 120 秒，玩家可以分享、隱瞞或扭曲自己知道的內容。</li>
+        <li><strong>投票：</strong>玩家在手機匿名投票，送出後不可修改。</li>
+        <li><strong>結果：</strong>公布各選項票數、最終方案及公司數值前後變化。</li>
+        <li><strong>公司檢查：</strong>確認公司是否死亡；存活便進入下一回合。</li>
+      </ol>
+      <p>每局事件不重複：Round 1–2 從 Early 池抽取；Round 3–5 從 Mid 池抽取；Round 6–8 從 Late 池抽取。</p>
+    </section>
+
+    <section id="intel" class="card rule-section">
+      <div class="eyebrow">06</div><h2>私人情報</h2>
+      <ul>
+        <li>系統情報 <strong>100% 真實</strong>，系統不會製造假情報。</li>
+        <li>7 人局通常每回合有 2–3 人取得情報；其餘玩家會看到「本回合沒有額外情報」。</li>
+        <li>情報可能揭露選項效果、隱藏條件，或說明當前狀態是否會觸發條件。</li>
+        <li>玩家可以講真話、隱瞞、只說一部分、自己說謊，或假裝收到情報。</li>
+        <li>重新整理不會重抽情報，同一回合永遠恢復原內容。</li>
+      </ul>
+    </section>
+
+    <section id="vote" class="card rule-section">
+      <div class="eyebrow">07</div><h2>討論與匿名投票</h2>
+      <ul>
+        <li>討論預設 120 秒；Host 可以提前結束討論。</li>
+        <li>投票預設 45 秒；所有在線玩家投完後保留 3 秒寬限再結算。</li>
+        <li>大螢幕投票期間只顯示已投票人數，不顯示即時票數或玩家選擇。</li>
+        <li>時間到、玩家離線或 Host 強制結束時，未投票者視為棄權。</li>
+        <li>單一最高票方案直接執行。</li>
+        <li>最高票平票時，只從並列最高票方案中隨機決定，不重投。</li>
+        <li>若所有人棄權，系統從 A／B／C 隨機決定。</li>
+      </ul>
+    </section>
+
+    <section id="missions" class="card rule-section">
+      <div class="eyebrow">08</div><h2>秘密任務</h2>
+      <p>只有普通玩家會抽到秘密任務，而且只有公司活過 Round 8 才會判定。任務分為：</p>
+      <ul>
+        <li><strong>單數值：</strong>例如最終 Money ≥ 40、Risk ≤ 55。</li>
+        <li><strong>雙數值：</strong>例如 Money ≥ 35 且 Morale ≥ 45。</li>
+        <li><strong>行為型：</strong>例如最後三回合至少兩次投給最終方案。</li>
+      </ul>
+      <p>數值區間包含上下界。行為任務中的「少數選項」只計算至少有 1 票、且嚴格少於其他有票選項的方案；0 票、棄權及三項同票都不算。</p>
+    </section>
+
+    <section id="ending" class="card rule-section">
+      <div class="eyebrow">09</div><h2>最終結算與揭露順序</h2>
+      <ol>
+        <li>公布最終 Money／Morale／Risk，或公司死亡原因。</li>
+        <li>逐一揭曉普通玩家：姓名、秘密任務、實際結果及 WIN／LOSE。</li>
+        <li>所有普通玩家公布完後，最後才揭露搞事仔。</li>
+      </ol>
+      <p>兩名搞事仔共享勝敗。系統固定把搞事仔排在最後，請不要提前暴雷。</p>
+    </section>
+
+    <section id="disconnect" class="card rule-section">
+      <div class="eyebrow">10</div><h2>斷線與恢復</h2>
+      <ul>
+        <li>玩家第一次加入後，手機會保存房間與玩家 Token。</li>
+        <li>重新整理或暫時斷線會恢復同一身份、任務、情報與投票狀態。</li>
+        <li>離線玩家不會讓遊戲中止；未投票視為棄權。</li>
+        <li>大螢幕重新整理後會恢復目前回合、階段、倒數、事件及公司數值。</li>
+        <li>同一事件效果不會因重新送出或連按而套用兩次。</li>
+      </ul>
+    </section>
+
+    <section id="host" class="card rule-section">
+      <div class="eyebrow">11</div><h2>Host 權限</h2>
+      <p>Host 可以開始遊戲、提前結束討論、強制結束目前階段、遊戲結束後再玩一場，以及解散遊戲。</p>
+      <p>Host 永遠看不到玩家角色、秘密任務、私人情報或個別投票。選擇「解散遊戲」會永久刪除房間及所有進度，並立即讓所有玩家退出。</p>
+    </section>
+
+    <section id="faq" class="card rule-section">
+      <div class="eyebrow">12</div><h2>常見問題</h2>
+      <h3>可以直接說自己是搞事仔嗎？</h3><p>可以。遊戲不限制玩家發言，但其他人沒有義務相信你。</p>
+      <h3>系統情報會不會是假消息？</h3><p>不會。系統顯示的情報永遠為真；玩家轉述的內容不一定為真。</p>
+      <h3>投錯可以修改嗎？</h3><p>不行。投票送出前會再次確認，送出後固定。</p>
+      <h3>斷線回來可以繼續投票嗎？</h3><p>投票倒數尚未結束且你尚未投票時，可以恢復後繼續投。</p>
+      <h3>公司在 Round 5 結果階段死亡算哪一段？</h3><p>算 Round 5 死亡，因此全員失敗。只有 Round 6–8 死亡才算搞事仔勝利。</p>
+      <h3>再玩一場會保留什麼？</h3><p>保留房間、房號與目前玩家；角色、任務、事件、情報、投票及公司數值全部重置。</p>
+    </section>
+  </main>
+  <a class="rules-link back-top" href="#top">回到頂部</a>
+</body>
+</html>

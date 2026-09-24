@@ -23,6 +23,7 @@ function connect() {
   events.onerror = () => {
     if (!state) app.innerHTML = '<section class="card notice">即時連線切換中，正在同步房間…</section>';
   };
+  events.addEventListener('disbanded', () => showDisbanded());
   pollState();
   if (!pollTimer) pollTimer = setInterval(pollState, 2000);
 }
@@ -40,14 +41,28 @@ async function pollState() {
   try {
     applyState(await App.api(`/api/rooms/${roomCode}/view?token=${encodeURIComponent(hostToken)}`));
   } catch (error) {
-    if (!state) app.innerHTML = `<section class="card error">${App.escapeHtml(error.message)}</section>`;
+    if (/找不到房間/.test(error.message)) showDisbanded();
+    else if (!state) app.innerHTML = `<section class="card error">${App.escapeHtml(error.message)}</section>`;
   }
+}
+
+function showDisbanded() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  state = null;
+  statusBar.classList.add('hidden');
+  localStorage.removeItem(`hostToken:${roomCode}`);
+  app.innerHTML = '<section class="card role"><div class="role-icon">🗑️</div><h2>遊戲已解散</h2><p class="subtitle">房間與進行中的資料已刪除，所有玩家都已退出。</p><a class="btn" href="/">回首頁</a></section>';
+}
+
+function disbandButtonHtml() {
+  return '<button class="btn danger full disband-button" data-action="DISBAND">解散遊戲</button>';
 }
 
 function renderStatus() {
   statusBar.classList.remove('hidden');
   statusBar.innerHTML = `<div class="round-pill">${state.round ? `Round ${state.round}/8` : `房間 ${state.roomCode}`}</div>
-    <div class="stats">${App.statsHtml(state.company)}</div><div class="phase-pill">${App.phaseLabel(state.phase)}</div>`;
+    <div class="stats">${App.statsHtml(state.company)}</div><div class="header-actions"><a class="rules-link" href="/rules.html" target="_blank" rel="noopener">規則</a><div class="phase-pill">${App.phaseLabel(state.phase)}</div></div>`;
 }
 
 function playersHtml() {
@@ -60,6 +75,7 @@ function lobbyHtml() {
       <p class="subtitle">需要 4–10 人。遊戲開始後將鎖定本局玩家名單。</p>
       <div class="room-code">${state.roomCode}</div>
       <button class="btn" data-action="START" ${state.controls.canStart ? '' : 'disabled'}>${state.playerCount < 4 ? `還需要 ${4 - state.playerCount} 人` : `開始遊戲（${state.playerCount} 人）`}</button>
+      ${disbandButtonHtml()}
     </section><aside class="card host-sidebar"><div id="qr" class="qr"></div><p class="notice">掃描加入，或輸入房號 <strong>${state.roomCode}</strong></p>${playersHtml()}</aside></div>`;
 }
 
@@ -121,6 +137,8 @@ function render() {
   } else {
     app.innerHTML = `<div class="host-grid"><div>${phaseMainHtml()}</div><aside class="card host-sidebar"><div class="eyebrow">房間 ${state.roomCode}</div><h3>${state.playerCount} 名玩家</h3>${playersHtml()}
       ${state.controls?.canAdvance ? `<button class="btn secondary full" data-action="ADVANCE">${advanceLabel()}</button>` : ''}</aside></div>`;
+    const sidebar = app.querySelector('.host-sidebar');
+    if (sidebar && !sidebar.querySelector('[data-action="DISBAND"]')) sidebar.insertAdjacentHTML('beforeend', disbandButtonHtml());
   }
   app.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => perform(button.dataset.action, button)));
   if (['FINAL', 'GAME_OVER'].includes(state.phase)) revealNext(0);
@@ -137,10 +155,12 @@ function revealNext(index) {
 async function perform(action, button) {
   if (busy) return;
   if (action === 'ADVANCE' && state.phase === 'VOTE' && !confirm('確定強制結束投票？未投票者將視為棄權。')) return;
+  if (action === 'DISBAND' && !confirm('確定解散遊戲？房間、角色、投票與進度都會永久刪除，所有玩家將立即退出。')) return;
   busy = true;
   button.disabled = true;
   try {
-    await App.api(`/api/rooms/${roomCode}/action`, { method: 'POST', body: { action, token: hostToken, expectedPhaseVersion: state.phaseVersion } });
+    const result = await App.api(`/api/rooms/${roomCode}/action`, { method: 'POST', body: { action, token: hostToken, expectedPhaseVersion: state.phaseVersion } });
+    if (result.disbanded) showDisbanded();
   } catch (error) {
     alert(error.message);
     button.disabled = false;

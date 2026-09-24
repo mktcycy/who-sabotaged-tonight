@@ -16,7 +16,7 @@ const {
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const store = new JsonStore(path.join(__dirname, 'data', 'rooms.json'));
+const store = new JsonStore(process.env.DATA_FILE || path.join(__dirname, 'data', 'rooms.json'));
 const streams = new Map();
 
 const MIME = {
@@ -120,6 +120,7 @@ function sanitizeRoom(room, viewer) {
       canStart: room.status === 'LOBBY' && room.players.length >= 4 && room.players.length <= 10,
       canAdvance: room.status === 'PLAYING',
       canRestart: room.status === 'FINISHED',
+      canDisband: true,
     } : null,
   };
 }
@@ -172,6 +173,14 @@ async function broadcast(roomCode) {
     }
     sendStream(client.response, 'state', sanitizeRoom(room, viewer));
   }
+}
+
+function broadcastDisbanded(roomCode) {
+  for (const client of streams.get(roomCode) || []) {
+    sendStream(client.response, 'disbanded', { roomCode, message: 'Host 已解散遊戲' });
+    client.response.end();
+  }
+  streams.delete(roomCode);
 }
 
 function activeConnections(roomCode, rawToken) {
@@ -267,6 +276,17 @@ async function handleAction(roomCode, request, response) {
   const body = await readBody(request);
   const action = String(body.action || '');
   const rawToken = String(body.token || '');
+  if (action === 'DISBAND') {
+    await store.deleteRoom(roomCode, (room) => {
+      const viewer = findViewer(room, rawToken);
+      if (viewer?.type !== 'HOST') throw new Error('只有 Host 可以解散遊戲');
+      if (Number(body.expectedPhaseVersion) !== room.phaseVersion) {
+        throw new Error('畫面狀態已更新，請依最新狀態操作');
+      }
+    });
+    broadcastDisbanded(roomCode);
+    return json(response, 200, { ok: true, disbanded: true });
+  }
   await store.updateRoom(roomCode, (room) => {
     const viewer = findViewer(room, rawToken);
     if (!viewer) throw new Error('驗證失敗');

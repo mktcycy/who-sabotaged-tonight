@@ -60,6 +60,20 @@ class JsonStore {
     return task;
   }
 
+  deleteRoom(roomCode, validator) {
+    const task = this.queue.then(async () => {
+      const database = this.read();
+      const room = database.rooms[roomCode];
+      if (!room) throw new Error('找不到房間');
+      if (validator) await validator(room);
+      delete database.rooms[roomCode];
+      this.write(database);
+      return room;
+    });
+    this.queue = task.catch(() => {});
+    return task;
+  }
+
   resetConnections() {
     const task = this.queue.then(() => {
       const database = this.read();

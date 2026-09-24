@@ -18,7 +18,7 @@ if (!/^\d{4}$/.test(roomCode)) {
 
 function renderJoin(message = '') {
   statusBar.classList.add('hidden');
-  app.innerHTML = `<div class="brand"><div class="brand-mark">搞</div><div><h1>加入房間 ${roomCode}</h1><p>先取一個同事叫得出口的名字</p></div></div>
+  app.innerHTML = `<div class="brand"><div class="brand-mark">搞</div><div><h1>加入房間 ${roomCode}</h1><p>先取一個同事叫得出口的名字</p></div><a class="rules-link brand-action" href="/rules.html" target="_blank" rel="noopener">規則</a></div>
     <section class="card"><form id="join-form"><div class="field"><label for="name">暱稱</label><input id="name" class="input" maxlength="16" required autofocus></div><button class="btn full">加入公司</button></form>${message ? `<div class="error">${App.escapeHtml(message)}</div>` : ''}</section>`;
   document.querySelector('#join-form').addEventListener('submit', join);
 }
@@ -45,6 +45,7 @@ function connect() {
   events.onerror = () => {
     if (!state) app.innerHTML = '<section class="card notice">即時連線切換中，正在同步房間…</section>';
   };
+  events.addEventListener('disbanded', () => showDisbanded());
   pollState();
   if (!pollTimer) pollTimer = setInterval(pollState, 2000);
 }
@@ -64,7 +65,9 @@ async function pollState() {
   try {
     applyState(await App.api(`/api/rooms/${roomCode}/view?token=${encodeURIComponent(playerToken)}`));
   } catch (error) {
-    if (!state && /驗證/.test(error.message)) {
+    if (/找不到房間/.test(error.message)) {
+      showDisbanded();
+    } else if (!state && /驗證/.test(error.message)) {
       localStorage.removeItem(`playerToken:${roomCode}`);
       playerToken = null;
       renderJoin('無法恢復原玩家。若遊戲已開始，請聯絡 Host。');
@@ -72,9 +75,19 @@ async function pollState() {
   }
 }
 
+function showDisbanded() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  state = null;
+  statusBar.classList.add('hidden');
+  localStorage.removeItem(`playerToken:${roomCode}`);
+  playerToken = null;
+  app.innerHTML = '<section class="card role"><div class="role-icon">🏁</div><h2>Host 已解散遊戲</h2><p class="subtitle">這個房間已關閉，遊戲進度也已刪除。</p><a class="btn" href="/">回首頁</a></section>';
+}
+
 function renderStatus() {
   statusBar.classList.remove('hidden');
-  statusBar.innerHTML = `<div class="round-pill">${state.round ? `${state.round}/8` : state.roomCode}</div><div class="stats">${App.statsHtml(state.company)}</div><div class="phase-pill">${App.phaseLabel(state.phase)}</div>`;
+  statusBar.innerHTML = `<div class="round-pill">${state.round ? `${state.round}/8` : state.roomCode}</div><div class="stats">${App.statsHtml(state.company)}</div><div class="header-actions"><a class="rules-link" href="/rules.html" target="_blank" rel="noopener">規則</a><div class="phase-pill">${App.phaseLabel(state.phase)}</div></div>`;
 }
 
 function secretSummary() {
