@@ -6,6 +6,7 @@ const app = document.querySelector('#app');
 const statusBar = document.querySelector('#status');
 let state = null;
 let busy = false;
+let pollTimer = null;
 
 if (!/^\d{4}$/.test(roomCode)) {
   app.innerHTML = '<section class="card"><h2>房號格式錯誤</h2><a class="btn" href="/">回首頁</a></section>';
@@ -39,18 +40,36 @@ async function join(event) {
 function connect() {
   const events = new EventSource(`/api/rooms/${roomCode}/events?token=${encodeURIComponent(playerToken)}`);
   events.addEventListener('state', (message) => {
-    state = JSON.parse(message.data);
-    state.receivedAt = Date.now();
-    render();
+    applyState(JSON.parse(message.data));
   });
   events.onerror = () => {
-    if (!state) {
+    if (!state) app.innerHTML = '<section class="card notice">即時連線切換中，正在同步房間…</section>';
+  };
+  pollState();
+  if (!pollTimer) pollTimer = setInterval(pollState, 2000);
+}
+
+function applyState(nextState) {
+  const changed = !state || nextState.phaseVersion !== state.phaseVersion
+    || nextState.voteProgress.submitted !== state.voteProgress.submitted
+    || JSON.stringify(nextState.players) !== JSON.stringify(state.players)
+    || nextState.private?.hasVoted !== state.private?.hasVoted;
+  state = nextState;
+  state.receivedAt = Date.now();
+  if (changed) render();
+}
+
+async function pollState() {
+  if (!playerToken) return;
+  try {
+    applyState(await App.api(`/api/rooms/${roomCode}/view?token=${encodeURIComponent(playerToken)}`));
+  } catch (error) {
+    if (!state && /驗證/.test(error.message)) {
       localStorage.removeItem(`playerToken:${roomCode}`);
       playerToken = null;
-      events.close();
       renderJoin('無法恢復原玩家。若遊戲已開始，請聯絡 Host。');
     }
-  };
+  }
 }
 
 function renderStatus() {

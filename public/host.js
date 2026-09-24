@@ -7,6 +7,7 @@ const statusBar = document.querySelector('#status');
 let state = null;
 let busy = false;
 let revealTimer = null;
+let pollTimer = null;
 
 if (!/^\d{4}$/.test(roomCode) || !hostToken) {
   app.innerHTML = '<section class="card"><h2>無法恢復 Host</h2><p class="subtitle">此瀏覽器沒有這個房間的 Host Token，請回首頁重新建立房間。</p><a class="btn" href="/">回首頁</a></section>';
@@ -17,13 +18,30 @@ if (!/^\d{4}$/.test(roomCode) || !hostToken) {
 function connect() {
   const events = new EventSource(`/api/rooms/${roomCode}/events?token=${encodeURIComponent(hostToken)}`);
   events.addEventListener('state', (message) => {
-    state = JSON.parse(message.data);
-    state.receivedAt = Date.now();
-    render();
+    applyState(JSON.parse(message.data));
   });
   events.onerror = () => {
-    if (!state) app.innerHTML = '<section class="card notice">連線中斷，正在自動重連…</section>';
+    if (!state) app.innerHTML = '<section class="card notice">即時連線切換中，正在同步房間…</section>';
   };
+  pollState();
+  if (!pollTimer) pollTimer = setInterval(pollState, 2000);
+}
+
+function applyState(nextState) {
+  const changed = !state || nextState.phaseVersion !== state.phaseVersion
+    || nextState.voteProgress.submitted !== state.voteProgress.submitted
+    || JSON.stringify(nextState.players) !== JSON.stringify(state.players);
+  state = nextState;
+  state.receivedAt = Date.now();
+  if (changed) render();
+}
+
+async function pollState() {
+  try {
+    applyState(await App.api(`/api/rooms/${roomCode}/view?token=${encodeURIComponent(hostToken)}`));
+  } catch (error) {
+    if (!state) app.innerHTML = `<section class="card error">${App.escapeHtml(error.message)}</section>`;
+  }
 }
 
 function renderStatus() {
