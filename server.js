@@ -150,6 +150,8 @@ function json(response, status, payload) {
 }
 
 async function readBody(request) {
+  if (request.body && typeof request.body === 'object') return request.body;
+  if (typeof request.body === 'string') return JSON.parse(request.body);
   let body = '';
   for await (const chunk of request) {
     body += chunk;
@@ -454,10 +456,10 @@ async function main() {
   });
 }
 
-if (require.main === module || process.env.VERCEL) main().catch((error) => {
+if (require.main === module) main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
 
-module.exports = server;
+module.exports = server.listeners('request')[0];
 Object.assign(module.exports, { server, sanitizeRoom, findViewer, hash, refreshCloudRoom });
