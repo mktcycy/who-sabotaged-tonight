@@ -459,4 +459,5 @@ if (require.main === module || process.env.VERCEL) main().catch((error) => {
   process.exitCode = 1;
 });
 
-module.exports = { server, sanitizeRoom, findViewer, hash, refreshCloudRoom };
+module.exports = server;
+Object.assign(module.exports, { server, sanitizeRoom, findViewer, hash, refreshCloudRoom });
