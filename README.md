@@ -65,3 +65,13 @@ docker run --rm -p 3000:3000 -v game-data:/app/data who-sabotaged-tonight
 ## 未來優化方向
 
 - 擴充事件池，或為同一事件提供多組隨機效果與條件變體，避免熟悉事件後直接記住最佳選項，持續保留私人情報、討論與搞事仔誤導的價值。
+
+## Vercel 部署
+
+- 使用 Node 應用程式預設，從本儲存庫 main 分支部署。
+- 在 Vercel Storage 將 Neon 資料庫連接到此專案的 Production 和 Preview 環境，提供 DATABASE_URL。
+- DATABASE_URL 存在時，房間改存 Postgres；請勿將資料庫連線字串提交到 Git。
+- 雲端使用每 2 秒同步畫面與 15 秒在線狀態期限；到期階段於下一次已驗證請求中推進，不依賴常駐計時器。
+- 每次寫入以資料庫版本比較保護，避免多個函式同時投票時覆蓋資料。
+- 未設定 DATABASE_URL 的 Vercel 部署會明確拒絕啟動，避免把正式房間寫入暫存檔案。
+- 本機執行仍使用 JSON 與 SSE。需要 Node.js 22 以上。

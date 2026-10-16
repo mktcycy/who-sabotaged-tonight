@@ -15,7 +15,14 @@ if (!/^\d{4}$/.test(roomCode) || !hostToken) {
   connect();
 }
 
-function connect() {
+async function connect() {
+  let transport;
+  try { transport = await App.api('/api/config'); }
+  catch (error) {
+    app.innerHTML = '<section class="card error">無法連接遊戲伺服器，請重新整理。</section>';
+    return;
+  }
+  if (transport.transport === 'sse') {
   const events = new EventSource(`/api/rooms/${roomCode}/events?token=${encodeURIComponent(hostToken)}`);
   events.addEventListener('state', (message) => {
     applyState(JSON.parse(message.data));
@@ -24,6 +31,7 @@ function connect() {
     if (!state) app.innerHTML = '<section class="card notice">即時連線切換中，正在同步房間…</section>';
   };
   events.addEventListener('disbanded', () => showDisbanded());
+  }
   pollState();
   if (!pollTimer) pollTimer = setInterval(pollState, 2000);
 }

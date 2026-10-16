@@ -17,7 +17,11 @@ const {
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const store = new JsonStore(process.env.DATA_FILE || path.join(__dirname, 'data', 'rooms.json'));
+const cloud = Boolean(process.env.DATABASE_URL);
+if (process.env.VERCEL && !cloud) throw new Error('請先連接 Neon 資料庫並設定 DATABASE_URL');
+const store = cloud
+  ? new (require('./src/postgres-store').PostgresStore)(process.env.DATABASE_URL)
+  : new JsonStore(process.env.DATA_FILE || path.join(__dirname, 'data', 'rooms.json'));
 const streams = new Map();
 
 const MIME = {
@@ -159,8 +163,8 @@ async function readBody(request) {
   }
 }
 
-function generateRoomCode() {
-  const existing = new Set(store.listRooms().map((room) => room.roomCode));
+async function generateRoomCode() {
+  const existing = new Set((await store.listRooms()).map((room) => room.roomCode));
   for (let attempt = 0; attempt < 10_000; attempt += 1) {
     const code = String(crypto.randomInt(0, 10_000)).padStart(4, '0');
     if (!existing.has(code)) return code;
@@ -173,7 +177,8 @@ function sendStream(response, eventName, payload) {
 }
 
 async function broadcast(roomCode) {
-  const room = store.getRoom(roomCode);
+  if (cloud) return;
+  const room = await store.getRoom(roomCode);
   if (!room) return;
   for (const client of streams.get(roomCode) || []) {
     const viewer = findViewer(room, client.token);
@@ -212,7 +217,7 @@ async function setPlayerConnection(roomCode, rawToken, connected) {
 }
 
 async function handleCreateRoom(response) {
-  const roomCode = generateRoomCode();
+  const roomCode = await generateRoomCode();
   const hostToken = token();
   const now = Date.now();
   await store.createRoom({
@@ -275,11 +280,32 @@ async function handleJoin(roomCode, request, response) {
 }
 
 async function handleView(roomCode, rawToken, response) {
-  const room = store.getRoom(roomCode);
+  if (cloud) {
+    const room = await store.updateRoom(roomCode, (room) => {
+      const viewer = findViewer(room, rawToken);
+      if (!viewer) throw new Error('驗證失敗');
+      refreshCloudRoom(room, viewer);
+    });
+    return json(response, 200, sanitizeRoom(room, findViewer(room, rawToken)));
+  }
+  const room = await store.getRoom(roomCode);
   if (!room) return json(response, 404, { error: '找不到房間' });
   const viewer = findViewer(room, rawToken);
   if (!viewer) return json(response, 401, { error: '驗證失敗' });
   return json(response, 200, sanitizeRoom(room, viewer));
+}
+
+function refreshCloudRoom(room, viewer, now = Date.now()) {
+  for (const player of room.players) {
+    if (viewer?.player?.id === player.id && now - player.lastSeenAt > 5000) player.lastSeenAt = now;
+    player.connected = now - player.lastSeenAt < 15000;
+  }
+  // Advance expired stages under the same database revision as the request.
+  // Discussion stays untimed; inactive rooms catch up when a player returns.
+  for (let step = 0; step < 32 && room.status === 'PLAYING'
+      && room.phaseEndsAt !== null && room.phaseEndsAt <= now; step += 1) {
+    advancePhase(room, room.phaseEndsAt);
+  }
 }
 
 async function handleAction(roomCode, request, response) {
@@ -300,6 +326,7 @@ async function handleAction(roomCode, request, response) {
   await store.updateRoom(roomCode, (room) => {
     const viewer = findViewer(room, rawToken);
     if (!viewer) throw new Error('驗證失敗');
+    if (cloud) refreshCloudRoom(room, viewer);
     if (Number(body.expectedPhaseVersion) !== room.phaseVersion) {
       throw new Error('畫面狀態已更新，請依最新狀態操作');
     }
@@ -332,7 +359,8 @@ async function handleAction(roomCode, request, response) {
 }
 
 async function handleStream(roomCode, rawToken, request, response) {
-  const room = store.getRoom(roomCode);
+  if (cloud) return handleView(roomCode, rawToken, response);
+  const room = await store.getRoom(roomCode);
   if (!room) return json(response, 404, { error: '找不到房間' });
   const viewer = findViewer(room, rawToken);
   if (!viewer) return json(response, 401, { error: '驗證失敗' });
@@ -380,6 +408,7 @@ const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
     const roomMatch = url.pathname.match(/^\/api\/rooms\/(\d{4})(?:\/(join|view|action|events))?$/);
     if (request.method === 'GET' && url.pathname === '/health') return json(response, 200, { status: 'ok' });
+    if (request.method === 'GET' && url.pathname === '/api/config') return json(response, 200, { transport: cloud ? 'poll' : 'sse' });
     if (request.method === 'POST' && url.pathname === '/api/rooms') return await handleCreateRoom(response);
     if (roomMatch) {
       const [, roomCode, operation] = roomMatch;
@@ -397,7 +426,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 async function schedulerTick() {
-  for (const snapshot of store.listRooms()) {
+  for (const snapshot of await store.listRooms()) {
     if (snapshot.status !== 'PLAYING' || snapshot.phaseEndsAt === null || snapshot.phaseEndsAt > Date.now()) continue;
     try {
       await store.updateRoom(snapshot.roomCode, (room) => {
@@ -413,9 +442,9 @@ async function schedulerTick() {
 }
 
 async function main() {
-  await store.resetConnections();
-  setInterval(schedulerTick, 500).unref();
-  setInterval(() => {
+  if (!cloud) await store.resetConnections();
+  if (!cloud) setInterval(schedulerTick, 500).unref();
+  if (!cloud) setInterval(() => {
     for (const clients of streams.values()) {
       for (const client of clients) client.response.write(': heartbeat\n\n');
     }
@@ -425,9 +454,9 @@ async function main() {
   });
 }
 
-if (require.main === module) main().catch((error) => {
+if (require.main === module || process.env.VERCEL) main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
 
-module.exports = { server, sanitizeRoom, findViewer, hash };
+module.exports = { server, sanitizeRoom, findViewer, hash, refreshCloudRoom };
